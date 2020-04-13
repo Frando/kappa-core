@@ -5,6 +5,7 @@ const SimpleState = require('./util/state')
 module.exports = function multifeedSource (opts) {
   const state = new SimpleState(opts)
   const feeds = opts.feeds
+  const scopeFeeds = opts.scopeFeeds || function (feed, cb) { cb() }
   const sources = []
 
   return {
@@ -31,14 +32,19 @@ module.exports = function multifeedSource (opts) {
   }
 
   function onfeed (flow, feed, cb) {
-    const source = hypercoreSource({
-      feed,
-      state
-    })
-    sources.push(source)
-    source.open(flow, () => {
-      flow.update()
-      if (cb) cb()
+    scopeFeeds(feed, (err) => {
+      if (err && cb) return cb()
+      if (err) return
+
+      const source = hypercoreSource({
+        feed,
+        state
+      })
+      sources.push(source)
+      source.open(flow, () => {
+        flow.update()
+        if (cb) cb()
+      })
     })
   }
 }
