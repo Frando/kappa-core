@@ -38,7 +38,7 @@ function createSimpleView () {
       next()
     },
     api: {
-      collect (kappa, cb) {
+      collect (cb) {
         this.ready(() => cb(null, res))
       }
     }

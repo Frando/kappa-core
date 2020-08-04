@@ -40,6 +40,7 @@ Register a flow.
         }
     }
     ```
+  * `ready: function (cb)`: *(optional)*: Handler to wait for running operations to finish. Call `cb` after currently pending operations that might call `update` on the flow have finished.
   * `reset: function (cb)`: **(required)** Handler to reset internal state. This is called when a full reindex is necessary. This means that the next pull ought to start at the beginning.
   * `storeVersion: function (version, cb)`: **(required)** Handler to store the flow version number.
   * `fetchVersion: function (cb)`: **(required)** Handler to fetch the version stored with `storeVersion`.
@@ -52,7 +53,7 @@ Register a flow.
   * `reset: function (cb)`: **(required)** Handler to delete all indexed data. This is called by the Kappa core when a complete reindex is necessary. The `map` function will receive messages from the start on afterwards.
   * `version: int` The view version. If the version is increased, the Kappa core will clear and restart the indexing for this view after the next reopening of the core. Defaults to `1`.
 
-Both `source` and `view` can have an `api` property with an object of functions. The functions are exposed on `kappa.view[name]` / `kappa.source[name]`. Their `this` object refers to the flow they are part of, and their first parameter is the `kappa`. Other parameters are passed through.
+Both `source` and `view` can have an `api` property with an object of functions. The functions are exposed on `kappa.view[name]` / `kappa.source[name]`. Their `this` object refers to the flow they are part of. Parameters are passed through.
 
 The source has to track its state, so that subsequent calls to `pull()` do not return the same messages. Use the `onindexed` callback to update state. How to track its state is up to the source implementation. kappa-core provides a `SimpleState` helper to simplify this, see its documentation below.
 
@@ -79,7 +80,7 @@ Resume processing of all flows
 When calling `kappa.use()` a new *Flow* is created. A Flow is the combination of a source and a view - where the data flows from the source into the view. The `Flow` object is passed to sources and views in their `open` handler. It has this public API:
 
 * `flow.name`: (string) A name that uniquely identifies this flow within the Kappa core.
-* `flow.update()`: Signal to the flow that the source has new data available. Youwant to call this from a source when the source has new data. If the Kappa core is not paused, this will cause the `pull` handler to be called.
+* `flow.update()`: Signal to the flow that the source has new data available. You want to call this from a source when the source has new data. If the Kappa core is not paused, this will cause the `pull` handler to be called.
 * `flow.ready(cb)`: Calls `cb` (with no arguments) when this flow has finished processing all messages. `cb` is called immediately if the flow is already finished.
 * `flow.getState()`: Get the current indexing state. Returns an object:
     ```javascript

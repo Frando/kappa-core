@@ -42,12 +42,12 @@ class SimpleSource {
   get api () {
     const self = this
     return {
-      push (kappa, value) {
+      push (value) {
         if (!Array.isArray(value)) value = [value]
         self.buf.push(...value)
         if (self.flow) self.flow.update()
       },
-      error (kappa, err) {
+      error (err) {
         self.error = err
         if (self.flow) self.flow.update()
       }

@@ -19,7 +19,7 @@ tape('hypercore source', t => {
       next()
     },
     api: {
-      collect (kappa, cb) {
+      collect (cb) {
         this.ready(() => cb(null, res))
       }
     }
@@ -118,7 +118,7 @@ function makeSimpleView (db, version) {
       db.put('msgs', JSON.stringify([]), cb)
     },
     api: {
-      collect (kappa, cb) {
+      collect (cb) {
         this.ready(() => {
           db.get('msgs', (err, value) => {
             cb(err, value ? JSON.parse(value) : [])

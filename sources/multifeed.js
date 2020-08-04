@@ -24,7 +24,7 @@ module.exports = function multifeedSource (opts) {
     fetchVersion: state.fetchVersion,
     storeVersion: state.storeVersion,
     api: {
-      feed (kappa, key) {
+      feed (key) {
         return feeds.feed(key)
       }
     }

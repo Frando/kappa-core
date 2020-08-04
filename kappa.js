@@ -29,11 +29,11 @@ module.exports = class Kappa extends EventEmitter {
 
   use (name, source, view, opts = {}) {
     opts.status = opts.status || this.status
-    opts.context = opts.context || this
     const flow = new Flow(name, source, view, opts)
     this.flows[name] = flow
     this.view[name] = flow.view
     this.source[name] = flow.source
+
     flow.on('error', err => this.emit('error', err, flow))
     flow.on('state-update', state => this.emit('state-update', name, state))
 
@@ -117,11 +117,17 @@ class Flow extends EventEmitter {
     this.opts = opts
     this.name = name
 
+    if (!view.api) view.api = {}
+    if (!source.api) source.api = {}
     if (!view.version) view.version = 1
 
     // TODO: Backward-compatibility only. Remove.
     if (view.clearIndex && !view.reset) {
       view.reset = view.clearIndex.bind(view)
+    }
+
+    if (view.api.ready === undefined) {
+      view.api.ready = cb => this.ready(cb)
     }
 
     this._view = view
@@ -131,9 +137,8 @@ class Flow extends EventEmitter {
     this._indexingState = {}
 
     // Assign view and source apis
-    this.view = bindApi(view.api, this._context)
-    this.view.ready = cb => this.ready(cb)
-    this.source = bindApi(source.api, this._context)
+    this.view = this._view.api
+    this.source = this._source.api
 
     // Create the list of funtions through which messages run between pull and map.
     this._transform = new Pipeline()
@@ -217,8 +222,7 @@ class Flow extends EventEmitter {
     if (!this.opened) return this.open(() => this.ready(cb))
 
     setImmediate(() => {
-      if (this.source.ready) this.source.ready(onsourceready)
-      else if (this._source.ready) this._source.ready(onsourceready)
+      if (this._source.ready) this._source.ready(onsourceready)
       else onsourceready()
     })
 
@@ -329,7 +333,6 @@ class Flow extends EventEmitter {
       } else {
         self.emit('ready')
       }
-
     }
   }
 }
@@ -351,15 +354,6 @@ class State {
 }
 
 // Utils
-
-function bindApi (api, ...binds) {
-  if (!api) return {}
-  for (let [key, value] of Object.entries(api)) {
-    if (typeof value !== 'function') continue
-    api[key] = value.bind(api, ...binds)
-  }
-  return api
-}
 
 class Pipeline {
   constructor () {

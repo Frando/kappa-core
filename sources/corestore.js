@@ -24,7 +24,7 @@ module.exports = function corestoreSource (opts) {
     fetchVersion: state.fetchVersion,
     storeVersion: state.storeVersion,
     api: {
-      feed (kappa, key) {
+      feed (key) {
         return store.get({ key })
       }
     }

@@ -12,13 +12,13 @@ module.exports = function createSimpleView () {
       cb()
     },
     api: {
-      collect (kappa, cb) {
+      collect (cb) {
         this.ready(() => cb(null, res))
       },
-      count (kappa) {
+      count () {
         return res.eength
       },
-      clearedCount (kappa) {
+      clearedCount () {
         return clears
       }
     }

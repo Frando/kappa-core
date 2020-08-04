@@ -46,7 +46,7 @@ function createSumView () {
   let sum = 0
   const sumview = {
     api: {
-      get: function (kappa, cb) {
+      get: function (cb) {
         this.ready(function () {
           cb(null, sum)
         })
