@@ -287,28 +287,25 @@ class Flow extends EventEmitter {
     this._setState(Status.Running)
     this._source.pull(onbatch)
 
-    function onbatch (result) {
+    function onbatch (err, messages, finished, onindexed) {
       // If set to paused while pulling, drop the result and don't update state.
       if (self._state.state === Status.Paused) return
-      if (!result) return close()
 
-      let { error, messages, finished, onindexed } = result
-
-      if (error) return close(error)
-      if (!messages) return close()
+      if (err) return ondone(err)
+      if (!messages) return ondone()
       messages = messages.filter(m => m)
-      if (!messages.length) return close()
+      if (!messages.length) return ondone()
 
       self._transform.run(messages, messages => {
-        if (!messages.length) return close()
+        if (!messages.length) return ondone()
         // TODO: Handle timeout?
         self._view.map(messages, err => {
-          close(err, messages, finished, onindexed)
+          ondone(err, messages, finished, onindexed)
         })
       })
     }
 
-    function close (err, messages, finished, onindexed) {
+    function ondone (err, messages, finished, onindexed) {
       if (err) return finish(err)
       if (messages && messages.length && self._view.indexed) {
         self._view.indexed(messages)

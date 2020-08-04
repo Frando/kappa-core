@@ -20,26 +20,20 @@ Register a flow.
 
 * `name` (string) the name of the flow, has to be unique per kappa core
 * `source` object with properties:
+  * `pull: function (next)`: **(required)** Handler to pull new messages from the view. Should call `next(error, messages, finished, onindexed)`:
+      * `error`: optional error
+      * `messages`: array of messages
+      * `finished: true`: if set to false, signal that more messages are pending
+      * `onindexed: function (cb)`: Function that will be called when the view finished indexing. Use this to update the source state and call `cb(err, stateContext)`  when finished. `stateContext` is an optional state object with, by convention, the following keys:
+        ```javascript
+        {
+          totalBlocks: Number,
+          indexedBlocks: Number,
+          prevIndexedBlocks: Number 
+        }
+        ```
   * `open: function (flow, cb)` *(optional)* Handler to call on open. `flow` is the current flow object (see below for docs). Call `cb` when done with opening.
   * `close: function (cb)`: *(optional)* Handler to call on close. Has to call `cb`.
-  * `pull: function (next)`: **(required)** Handler to pull new messages from the view. Should call `next` with either nothing or an object that looks like this:
-    ```javascript
-    {
-        error: Error,
-        messages: [], // array of messages
-        finished: true, // if set to false, signal that more messages are pending
-        onindexed: function (cb) {
-          // will be called when the view finished indexing
-          // call cb after the source state is updated
-          // may return a state object with, by convention, the following keys:
-          cb(null, {
-            totalBlocks: Number,
-            indexedBlocks: Number,
-            prevIndexedBlocks: Number 
-          })
-        }
-    }
-    ```
   * `ready: function (cb)`: *(optional)*: Handler to wait for running operations to finish. Call `cb` after currently pending operations that might call `update` on the flow have finished.
   * `reset: function (cb)`: **(required)** Handler to reset internal state. This is called when a full reindex is necessary. This means that the next pull ought to start at the beginning.
   * `storeVersion: function (version, cb)`: **(required)** Handler to store the flow version number.
@@ -115,14 +109,15 @@ function createSource (opts) {
         // fetch messages from your data source
         fetchMessages(state, ({ messages, finished, nextState }) => {
           // call next with an onindexed handler
-          next({
+          next(
+            null,
             messages,
             finished,
-            onindexed (cb) {
+            function onindexed (cb) {
               // store the new state
               state.put(nextState, cb)
             }
-          })
+          )
         })
       })
     },

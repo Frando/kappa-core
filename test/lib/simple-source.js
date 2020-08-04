@@ -15,15 +15,16 @@ class SimpleSource {
   }
 
   pull (next) {
-    if (this.error) return next({ error: this.error })
+    if (this.error) return next(this.error)
     const len = this.buf.length
     const end = Math.min(this.cursor + this.maxBatch, len)
     const messages = this.buf.slice(this.cursor, end)
     const lastState = this.cursor
-    next({
+    next(
+      null,
       messages,
-      finished: end === len,
-      onindexed: cb => {
+      end === len,
+      cb => {
         this.cursor = end
         cb(null, {
           totalBlocks: this.buf.length,
@@ -31,7 +32,7 @@ class SimpleSource {
           prevIndexedBlocks: lastState
         })
       }
-    })
+    )
   }
 
   reset (cb) {

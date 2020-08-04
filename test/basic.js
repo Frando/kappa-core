@@ -39,15 +39,16 @@ tape('finished handling', t => {
     pull (next) {
       let finished
       if (i !== msgs.length - 1) finished = false
-      next({
-        messages: [msgs[i]],
+      next(
+        null,
+        [msgs[i]],
         finished,
-        onindexed: (cb) => {
+        function onindexed (cb) {
           t.pass('onindexed ' + i)
           i = i + 1
           cb()
         }
-      })
+      )
     }
   }, createSimpleView())
 
@@ -67,17 +68,18 @@ tape('error on pull', t => {
   let i = 0
   kappa.use('foo', {
     pull (next) {
-      if (i === 1) return next({ error: new Error('pull error') })
+      if (i === 1) return next(new Error('pull error'))
       if (i > 1) t.fail('pull after error')
-      next({
-        messages: msgs,
-        finished: false,
-        onindexed: (cb) => {
+      next(
+        null,
+        msgs,
+        false,
+        function onindexed (cb) {
           t.pass('onindexed ' + i)
           i++
           cb()
         }
-      })
+      )
     }
   }, createSimpleView())
   kappa.once('error', err => {
@@ -181,14 +183,15 @@ tape('open close', t => {
   kappa.use('foo', {
     pull (next) {
       t.pass('pull')
-      return next({
-        messages: [++i, ++i],
-        finished: true,
-        onindexed (cb) {
+      return next(
+        null,
+        [++i, ++i],
+        true,
+        function onindexed (cb) {
           t.pass('onindexed')
           cb()
         }
-      })
+      )
     },
     open (flow, cb) {
       t.pass('open')

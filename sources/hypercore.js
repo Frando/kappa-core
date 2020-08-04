@@ -48,7 +48,7 @@ class HypercoreSource {
     if (!(to > at)) return next()
 
     if (!feed.has(at, to)) {
-      return next({ finished: true })
+      return next(null, null, true)
     }
 
     feed.getBatch(at, to, { wait: false }, (err, res) => {
@@ -60,13 +60,12 @@ class HypercoreSource {
         value: node
       }))
 
-      next({
-        messages: res,
-        finished: to === len,
-        onindexed (cb) {
-          self.state.put(self.name, to, cb)
-        }
-      })
+      next(
+        null,
+        res,
+        to === len,
+        cb => self.state.put(self.name, to, cb)
+      )
     })
   }
 }
