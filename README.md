@@ -20,7 +20,7 @@ Register a flow.
 
 * `name` (string) the name of the flow, has to be unique per kappa core
 * `source` object with properties:
-  * `pull: function (next)`: **(required)** Handler to pull new messages from the view. Should call `next(error, messages, finished, onindexed)`:
+  * `pull: function (next)`: **(required)** Handler to pull new messages from the source. Should call `next(error, messages, finished, onindexed)`:
       * `error`: optional error
       * `messages`: array of messages
       * `finished: true`: if set to false, signal that more messages are pending
@@ -47,7 +47,7 @@ Register a flow.
   * `reset: function (cb)`: **(required)** Handler to delete all indexed data. This is called by the Kappa core when a complete reindex is necessary. The `map` function will receive messages from the start on afterwards.
   * `version: int` The view version. If the version is increased, the Kappa core will clear and restart the indexing for this view after the next reopening of the core. Defaults to `1`.
 
-Both `source` and `view` can have an `api` property with an object of functions. The functions are exposed on `kappa.view[name]` / `kappa.source[name]`. Their `this` object refers to the flow they are part of. Parameters are passed through.
+Both `source` and `view` can have an `api` property with an object of functions. The functions are exposed on `kappa.view[name]` / `kappa.source[name]`. Their `this` object refers to the flow they are part of.
 
 The source has to track its state, so that subsequent calls to `pull()` do not return the same messages. Use the `onindexed` callback to update state. How to track its state is up to the source implementation. kappa-core provides a `SimpleState` helper to simplify this, see its documentation below.
 
