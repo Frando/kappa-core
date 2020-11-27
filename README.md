@@ -43,7 +43,7 @@ Register a flow.
 * `view` object with properties:
   * `open: function (flow, cb)` *(optional)* Handler to call on open. `flow` is the current flow object (see below for docs). Call `cb` when done with opening.
   * `close: function (cb)`: *(optional)* Handler to call on close. Has to call `cb`.
-  * `map: function (messages, next)` **(required)** Handler for each batch of messages. Call `next` when done indexing this batch of messages.
+  * `map: function (messages, next)` **(required)** Handler for each batch of messages. Call `next` when done indexing this batch of messages. Can also return a promise which will be awaited (do not call `next` if returning a promise).
   * `reset: function (cb)`: **(required)** Handler to delete all indexed data. This is called by the Kappa core when a complete reindex is necessary. The `map` function will receive messages from the start on afterwards.
   * `version: int` The view version. If the version is increased, the Kappa core will clear and restart the indexing for this view after the next reopening of the core. Defaults to `1`.
 

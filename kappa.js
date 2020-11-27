@@ -299,9 +299,13 @@ class Flow extends EventEmitter {
       self._transform.run(messages, messages => {
         if (!messages.length) return ondone()
         // TODO: Handle timeout?
-        self._view.map(messages, err => {
+        const callback = function (err) {
           ondone(err, messages, finished, onindexed)
-        })
+        }
+        const maybePromise = self._view.map(messages, callback)
+        if (maybePromise && maybePromise.then) {
+          maybePromise.then(() => callback()).catch(callback)
+        }
       })
     }
 
@@ -337,7 +341,7 @@ class Flow extends EventEmitter {
 class State {
   constructor () {
     this.state = Status.Closed
-    this.context = null
+    this.context = {}
   }
 
   set (state, context) {
