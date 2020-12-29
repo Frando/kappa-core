@@ -77,9 +77,15 @@ module.exports = class Kappa extends EventEmitter {
   }
 
   close (cb) {
-    this._forEachAsync((flow, next) => {
-      flow.close(next)
-    }, cb)
+    this.status = Status.Closing
+    process.nextTick(() => {
+      this._forEachAsync((flow, next) => {
+        flow.close(next)
+      }, err => {
+        this.status = Status.Closed
+        cb(err)
+      })
+    })
   }
 
   _forEach (fn, names) {
@@ -155,9 +161,14 @@ class Flow extends EventEmitter {
     return this._view.version
   }
 
+  get status () {
+    return this._state.state
+  }
+
   _open (cb = noop) {
     if (this.opened) return cb()
     const self = this
+    this.opening = true
     let done = false
     let pending = 1
     if (this._view.open) ++pending && this._view.open(this, onopen)
@@ -189,14 +200,17 @@ class Flow extends EventEmitter {
       if (err) return cb(err)
       self._setState(Status.Ready)
       self.opened = true
+      self.opening = false
       self._run()
       cb()
     }
   }
 
   close (cb) {
+    if (!this.opened && !this.opening) return cb()
+    if (!this.opened) return this.open(() => this.close(cb))
     const self = this
-    this.pause()
+    // this.pause()
     let state = this._state.state
     this._setState(Status.Closing)
 
@@ -324,7 +338,7 @@ class Flow extends EventEmitter {
     function finish (err, finished = true, context) {
       if (err) {
         self._setState(Status.Error, { error: err })
-      } else if (self._state.state !== Status.Closing) {
+      } else if (self._state.state === Status.Running) {
         self._setState(Status.Ready, context)
       }
 
