@@ -84,7 +84,7 @@ tape('error on pull', t => {
   }, createSimpleView())
   kappa.once('error', err => {
     t.equal(err.message, 'pull error')
-    t.equal(kappa.flows.foo.getState().status, 'error')
+    t.equal(kappa.flows.foo.state, 'error')
     t.end()
   })
 })
@@ -99,7 +99,7 @@ tape('error on map', t => {
   kappa.source.foo.push('a')
   kappa.once('error', err => {
     t.equal(err.message, 'map error')
-    t.equal(kappa.flows.foo.getState().status, 'error')
+    t.equal(kappa.flows.foo.state, 'error')
     t.end()
   })
   kappa.ready(() => {
@@ -124,25 +124,25 @@ tape('state update', t => {
       t.error(err, 'no error')
       t.deepEqual(res, [1, 2, 3, 4], 'result matches')
       t.deepEqual(state, {
-        status: 'ready',
+        state: 'idle',
         totalBlocks: 4,
         indexedBlocks: 4,
-        prevIndexedBlocks: 2
+        prevIndexedBlocks: 0
       }, 'state matches')
       t.deepEqual(state, foo.getState())
       cb()
     }),
     cb => {
       kappa.once('error', err => {
-        t.equal(err.message, 'bad')
+        t.equal(err.message, 'bad', 'error ok')
         process.nextTick(cb)
       })
       foo.source.error(new Error('bad'))
     },
     cb => {
-      t.equal(state.status, 'error')
+      t.equal(state.state, 'error')
       t.equal(state.error.message, 'bad')
-      t.equal(foo.getState().status, 'error')
+      t.equal(foo.getState().state, 'error')
       t.equal(foo.getState().error.message, 'bad')
       cb()
     },

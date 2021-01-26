@@ -79,7 +79,7 @@ When calling `kappa.use()` a new *Flow* is created. A Flow is the combination of
 * `flow.getState()`: Get the current indexing state. Returns an object:
     ```javascript
       {
-        status: 'idle' | 'running' | 'paused' | 'error',
+        state: 'idle' | 'running' | 'paused' | 'error',
         error: null | Error,
         // ... other keys as returned by the source
         // by convention this should include the following keys:

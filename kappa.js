@@ -1,5 +1,6 @@
 const thunky = require('thunky')
 const { EventEmitter } = require('events')
+const Runner = require('./lib/runner')
 
 const Status = {
   Closed: 'closed',
@@ -140,7 +141,6 @@ class Flow extends EventEmitter {
     this._source = source
 
     this._context = opts.context
-    this._indexingState = {}
 
     // Assign view and source apis
     this.view = this._view.api
@@ -154,7 +154,14 @@ class Flow extends EventEmitter {
 
     this.opened = false
     this.open = thunky(this._open.bind(this))
-    this._state = new State()
+
+    this._runner = new Runner(this._work.bind(this))
+    this._runner.on('ready', () => this.emit('ready'))
+    this._runner.on('error', (err) => this.emit('error', err))
+    this._runner.on('state', (state) => {
+      this.emit('state-update', { ...this.getState(), state })
+    })
+    this._progress = {}
   }
 
   get version () {
@@ -163,6 +170,10 @@ class Flow extends EventEmitter {
 
   get status () {
     return this._state.state
+  }
+
+  get state () {
+    return this._runner.state
   }
 
   _open (cb = noop) {
@@ -198,10 +209,9 @@ class Flow extends EventEmitter {
       if (done) return
       done = true
       if (err) return cb(err)
-      self._setState(Status.Ready)
       self.opened = true
       self.opening = false
-      self._run()
+      self._runner.start()
       cb()
     }
   }
@@ -210,12 +220,8 @@ class Flow extends EventEmitter {
     if (!this.opened && !this.opening) return cb()
     if (!this.opened) return this.open(() => this.close(cb))
     const self = this
-    // this.pause()
-    let state = this._state.state
-    this._setState(Status.Closing)
 
-    if (state === Status.Running) return this.once('ready', close)
-    else close()
+    this._runner.stop(close)
 
     function close () {
       let pending = 1
@@ -224,7 +230,7 @@ class Flow extends EventEmitter {
       done()
       function done () {
         if (--pending !== 0) return
-        self._setState(Status.Closed)
+        self.closed = true
         self.opened = false
         cb()
       }
@@ -233,6 +239,7 @@ class Flow extends EventEmitter {
 
   ready (cb) {
     const self = this
+    if (this.closed) return cb()
     if (!this.opened) return this.open(() => this.ready(cb))
 
     setImmediate(() => {
@@ -242,26 +249,22 @@ class Flow extends EventEmitter {
 
     function onsourceready () {
       process.nextTick(() => {
-        if (self._state.state === Status.Ready) process.nextTick(cb)
-        else self.once('ready', cb)
+        self._runner.ready(cb)
       })
     }
   }
 
   pause () {
-    this._setState(Status.Paused)
+    this._runner.pause()
   }
 
   resume () {
-    if (this._state.state !== Status.Paused) return
-    if (!this.opened) return this.open()
-    this._setState(Status.Ready)
-    this._run()
+    this._runner.resume()
   }
 
   reset (cb = noop) {
     const self = this
-    const paused = this._state.state === Status.Paused
+    const paused = this.state === 'paused'
     this.pause()
     let pending = 1
     process.nextTick(() => {
@@ -277,39 +280,27 @@ class Flow extends EventEmitter {
   }
 
   update () {
-    if (!this.opened) return
-    this.incomingUpdate = true
-    process.nextTick(this._run.bind(this))
+    this._runner.update()
   }
 
   getState () {
-    return this._state.get()
+    const status = { state: this.state, ...this._progress }
+    if (this.state === 'error') status.error = this._runner._error
+    return status
   }
 
-  _setState (state, context) {
-    this._state.set(state, context)
-    this.emit('state-update', this._state.get())
-    if (state === Status.Error) {
-      this.emit('error', context && context.error)
-    }
+  _setProgress (progress) {
+    if (!progress) return
+    this._progress = { ...this._progress, ...progress }
   }
 
-  _run () {
-    if (this._state.state !== Status.Ready) return
+  _work (cb) {
     const self = this
-
-    this._setState(Status.Running)
-    this._source.pull(onbatch)
-
-    function onbatch (err, messages, finished, onindexed) {
-      // If set to paused while pulling, drop the result and don't update state.
-      if (self._state.state === Status.Paused) return
-
+    this._source.pull((err, messages, finished, onindexed) => {
       if (err) return ondone(err)
-      if (!messages) return ondone()
+      if (!messages) messages = []
       messages = messages.filter(m => m)
       if (!messages.length) return ondone()
-
       self._transform.run(messages, messages => {
         if (!messages.length) return ondone()
         // TODO: Handle timeout?
@@ -321,10 +312,10 @@ class Flow extends EventEmitter {
           maybePromise.then(() => callback()).catch(callback)
         }
       })
-    }
+    })
 
     function ondone (err, messages, finished, onindexed) {
-      if (err) return finish(err)
+      if (err) return cb(err)
       if (messages && messages.length && self._view.indexed) {
         self._view.indexed(messages)
       }
@@ -333,38 +324,13 @@ class Flow extends EventEmitter {
       } else {
         finish(null, finished)
       }
-    }
 
-    function finish (err, finished = true, context) {
-      if (err) {
-        self._setState(Status.Error, { error: err })
-      } else if (self._state.state === Status.Running) {
-        self._setState(Status.Ready, context)
-      }
-
-      if (self._state.state === Status.Ready && (self.incomingUpdate || !finished)) {
-        self.incomingUpdate = false
-        process.nextTick(self._run.bind(self))
-      } else {
-        self.emit('ready')
+      function finish (err, finished, context) {
+        self._setProgress(context)
+        if (finished === false) self._runner.update()
+        cb(err)
       }
     }
-  }
-}
-
-class State {
-  constructor () {
-    this.state = Status.Closed
-    this.context = {}
-  }
-
-  set (state, context) {
-    this.state = state
-    if (context) this.context = { ...this.context, ...context }
-  }
-
-  get () {
-    return Object.assign({ status: this.state }, this.context || {})
   }
 }
 
